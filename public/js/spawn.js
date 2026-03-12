@@ -11,7 +11,7 @@ function addDinoRow() {
     var html =
         '<div class="row dino-row" id="'+id+'">' +
             '<div class="col-sm-3">' +
-                '<label>Dino</label> <span class="entry-preview"></span>' +
+                '<span class="drag-handle" style="cursor:move;">☰</span> <label>Dino</label> <span class="entry-preview"></span>' +
 				' <img class="dino-icon" src="" style="display:none;">' +
                 '<select class="form-control dino-select">'+options+'</select>' +
             '</div>' +
@@ -212,5 +212,15 @@ $(function() {
 	$("#copyCompact").click(function() {
 		copyToClipboard($("#outputCompact").text());
 		flashCopied($(this));
+	});
+
+	$("#dinosContainer").sortable({
+		items: ".dino-row",
+		handle: ".drag-handle",
+		axis: "y",
+		update: function() {
+			updateEntryNames();
+			autoGenerate();
+		}
 	});
 });

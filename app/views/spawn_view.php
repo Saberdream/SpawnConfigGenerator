@@ -5,6 +5,7 @@
     <title>Générateur de spawn ARK</title>
 
     <link rel="stylesheet" href="<?= BASE_URL ?>public/vendor/bootstrap.min.css">
+	<link rel="stylesheet" href="<?= BASE_URL ?>public/vendor/jquery-ui.min.css">
     <script src="<?= BASE_URL ?>public/vendor/jquery.min.js"></script>
     <script src="<?= BASE_URL ?>public/vendor/jquery-ui.min.js"></script>
 
