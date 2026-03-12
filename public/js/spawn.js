@@ -115,16 +115,25 @@ function generateConfig() {
 	}
 
 	var out =
-		'NPCSpawnEntriesContainerClassString="'+container+'",NPCSpawnEntries=(\n\t' +
-		entries.join(",\n\t") +
-		'\n),\nNPCSpawnLimits=(\n\t' +
-		limits.join(",\n\t") +
-		'\n))';
+		'ConfigAddNPCSpawnEntriesContainer=(\n' +
+		'\tNPCSpawnEntriesContainerClassString="'+container+'",\n' +
+		'\tNPCSpawnEntries=(\n\t\t' +
+			entries.join(",\n\t\t") +
+		'\n\t),\n' +
+		'\tNPCSpawnLimits=(\n\t\t' +
+			limits.join(",\n\t\t") +
+		'\n\t)\n' +
+		')';
 
-	var compact = out.replace(/\s+/g, '');
+	var out_compact =
+		'ConfigAddNPCSpawnEntriesContainer=(' +
+		'NPCSpawnEntriesContainerClassString="'+container+'",' +
+		'NPCSpawnEntries=(' + entries.join(",") + '),' +
+		'NPCSpawnLimits=(' + limits.join(",") + ')' +
+		')';
 
 	$("#output").text(out);
-	$("#outputCompact").text(compact);
+	$("#outputCompact").text(out_compact);
 }
 
 let autoGenTimer = null;
