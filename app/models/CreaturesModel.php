@@ -52,6 +52,8 @@ class CreaturesModel {
 
                 if ($name === '' || $bpRaw === '') continue;
 
+				$name = preg_replace('/[^a-zA-Z0-9 _-]/', '', $name);
+
 				// Extraction du blueprint propre
 				if (preg_match("#Blueprint'([^']+)'#i", $bpRaw, $m)) {
 					$bp = $m[1];
