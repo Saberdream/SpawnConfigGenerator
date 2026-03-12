@@ -1,0 +1,38 @@
+# --- Système ---
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/
+error_log
+
+# --- Cache ---
+cache/
+tmp/
+*.cache
+
+# --- Environnement ---
+.env
+.env.local
+.env.*.local
+
+# --- Composer ---
+/vendor/
+
+# --- Node / NPM ---
+/node_modules/
+npm-debug.log
+yarn-error.log
+
+# --- IDE / Éditeurs ---
+.vscode/
+.idea/
+*.swp
+
+# --- Déploiement ---
+/public/uploads/
+/public/.htaccess.local
+
+# --- Système MVC ---
+# (Tout sauf fichiers sensibles)
