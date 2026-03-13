@@ -1,8 +1,12 @@
 <?php
+namespace ArkTools\ArkGenerator\Models;
+
+use ArkTools\ArkGenerator\Config\Config;
+
 class ContainersModel {
 
     public function loadContainers() {
-        $file = DATA_PATH . 'Containers.txt';
+        $file = Config::DATA_PATH . 'Containers.txt';
         $containers = [];
 
         if (!file_exists($file)) return $containers;

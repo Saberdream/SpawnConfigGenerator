@@ -1,6 +1,9 @@
 <?php
-require_once MODEL_PATH . 'CreaturesModel.php';
-require_once MODEL_PATH . 'ContainersModel.php';
+namespace ArkTools\ArkGenerator\Controllers;
+
+use ArkTools\ArkGenerator\Models\CreaturesModel;
+use ArkTools\ArkGenerator\Models\ContainersModel;
+use ArkTools\ArkGenerator\Config\Config;
 
 class SpawnController {
 
@@ -11,6 +14,8 @@ class SpawnController {
         $creatures = $creaturesModel->loadCreatures();
         $containers = $containersModel->loadContainers();
 
-        require VIEW_PATH . 'spawn_view.php';
+		$baseUrl = Config::BASE_URL;
+
+        require Config::VIEW_PATH . 'spawn_view.php';
     }
 }

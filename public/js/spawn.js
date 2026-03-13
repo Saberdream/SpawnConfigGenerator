@@ -1,6 +1,6 @@
 var dinoIndex = 0;
 
-function addDinoRow() {
+function addDinoRow(data = null) {
     var id = "dino_" + dinoIndex++;
 
     var options = '<option value="">-- Choisir --</option>';
@@ -8,32 +8,40 @@ function addDinoRow() {
         options += '<option value="'+c.bp+'" data-name="'+c.name+'">'+c.name+'</option>';
     });
 
+	var weight = data ? data.weight : 0.1;
+	var radius = data ? data.radius : 3000;
+	var chanceMin = data ? data.chanceMin : 1;
+	var chanceMax = data ? data.chanceMax : 1;
+	var maxpct = data ? data.maxpct : 0.05;
+	var bp = data ? data.bp : "";
+
     var html =
         '<div class="row dino-row" id="'+id+'">' +
             '<div class="col-sm-3">' +
-                '<span class="drag-handle" style="cursor:move;">☰</span> <label>Dino</label> <span class="entry-preview"></span>' +
+                '<span class="drag-handle" style="cursor:move;">☰</span> ' +
+				'<label>Dino</label> <span class="entry-preview"></span>' +
 				' <img class="dino-icon" src="" style="display:none;">' +
                 '<select class="form-control dino-select">'+options+'</select>' +
             '</div>' +
             '<div class="col-sm-2">' +
                 '<label>Poids</label>' +
-                '<input type="number" class="form-control dino-weight" value="0.1" step="0.0001">' +
+                '<input type="number" class="form-control dino-weight" value="'+weight+'" step="0.0001">' +
             '</div>' +
             '<div class="col-sm-2">' +
                 '<label>Radius</label>' +
-                '<input type="number" class="form-control dino-radius" value="3000">' +
+                '<input type="number" class="form-control dino-radius" value="'+radius+'">' +
             '</div>' +
             '<div class="col-sm-2">' +
                 '<label>Chance min</label>' +
-                '<input type="number" class="form-control dino-chance-min" value="1" step="0.01">' +
+                '<input type="number" class="form-control dino-chance-min" value="'+chanceMin+'" step="0.01">' +
             '</div>' +
             '<div class="col-sm-2">' +
                 '<label>Chance max</label>' +
-                '<input type="number" class="form-control dino-chance-max" value="1" step="0.01">' +
+                '<input type="number" class="form-control dino-chance-max" value="'+chanceMax+'" step="0.01">' +
             '</div>' +
             '<div class="col-sm-1">' +
                 '<label>Max%</label>' +
-                '<input type="number" class="form-control dino-maxpct" value="0.05" step="0.01">' +
+                '<input type="number" class="form-control dino-maxpct" value="'+maxpct+'" step="0.01">' +
             '</div>' +
             '<div class="col-sm-12" style="margin-top:5px;">' +
                 '<button class="btn btn-danger btn-xs remove-dino">Supprimer</button>' +
@@ -41,6 +49,10 @@ function addDinoRow() {
         '</div>';
 
     $("#dinosContainer").append(html);
+
+	if (bp) {
+		$("#"+id).find(".dino-select").val(bp).trigger("change");
+	}
 
 	updateEntryNames();
 	autoGenerate();
@@ -65,7 +77,6 @@ function generateConfig() {
 	var container = $("#containerSelect").val();
 	var entries = [];
 	var limits = [];
-
 	var limitsMap = {};
 	var nameCount = {};
 
@@ -140,16 +151,17 @@ let autoGenTimer = null;
 
 function autoGenerate() {
     clearTimeout(autoGenTimer);
-    autoGenTimer = setTimeout(generateConfig, 150);
+    autoGenTimer = setTimeout(function() {
+        generateConfig();
+        updateShareUrl();
+    }, 150);
 }
 
 function getDinoIconUrl(name) {
     if (!name) return "";
 
-    // Normalisation : espaces → underscores
     let file = name.trim().replace(/\s+/g, "_");
 
-    // URL du wiki
     return "https://ark.wiki.gg/images/thumb/" + file + ".png/30px-" + file + ".png";
 }
 
@@ -167,17 +179,73 @@ function flashCopied(btn) {
     setTimeout(() => btn.text(original), 1000);
 }
 
+function updateShareUrl() {
+    var container = $("#containerSelect").val();
+
+    var dinos = [];
+
+    $(".dino-row").each(function() {
+        var bp = $(this).find(".dino-select").val();
+        if (!bp) return;
+
+        dinos.push({
+            bp: bp,
+            weight: parseFloat($(this).find(".dino-weight").val()),
+            radius: parseFloat($(this).find(".dino-radius").val()),
+            chanceMin: parseFloat($(this).find(".dino-chance-min").val()),
+            chanceMax: parseFloat($(this).find(".dino-chance-max").val()),
+            maxpct: parseFloat($(this).find(".dino-maxpct").val())
+        });
+    });
+
+    var payload = {
+        container: container,
+        dinos: dinos
+    };
+
+    var encoded = btoa(JSON.stringify(payload));
+
+    $("#shareUrl").val(window.location.origin + window.location.pathname + "?data=" + encoded);
+}
+
+function loadFromUrl() {
+	var params = new URLSearchParams(window.location.search);
+	if (!params.has("data")) return;
+
+	try {
+		var decoded = JSON.parse(atob(params.get("data")));
+
+		$("#containerSelect").val(decoded.container);
+
+		$("#dinosContainer").empty();
+		dinoIndex = 0;
+
+		decoded.dinos.forEach(function(d) {
+			addDinoRow(d);
+		});
+
+		updateEntryNames();
+		generateConfig();
+		updateShareUrl();
+	}
+	catch(e) {
+		console.error("Erreur de parsing URL :", e);
+	}
+}
+
 $(function() {
-    $("#addDino").click(addDinoRow);
+    $("#addDino").click(function() {
+		addDinoRow();
+	});
     addDinoRow();
 
     $("#dinosContainer").on("click", ".remove-dino", function() {
         $(this).closest(".dino-row").remove();
+		autoGenerate();
     });
 
     $("#generateBtn").click(generateConfig);
 
-	// Tous les champs qui doivent juste déclencher autoGenerate()
 	const autoFields = [
 		"#containerSelect",
 		".dino-weight",
@@ -187,12 +255,10 @@ $(function() {
 		".dino-radius"
 	];
 
-	// On attache autoGenerate() à tous ces champs d'un coup
 	autoFields.forEach(selector => {
 		$(document).on("input change", selector, autoGenerate);
 	});
 
-	// Cas particulier : changement de dino → updateEntryNames() + autoGenerate()
 	$(document).on("change", ".dino-select", function () {
 		updateEntryNames();
 		autoGenerate();
@@ -214,6 +280,11 @@ $(function() {
 		flashCopied($(this));
 	});
 
+	$("#copyShareUrl").click(function() {
+		copyToClipboard($("#shareUrl").val());
+		flashCopied($(this));
+	});
+
 	$("#dinosContainer").sortable({
 		items: ".dino-row",
 		handle: ".drag-handle",
@@ -223,4 +294,6 @@ $(function() {
 			autoGenerate();
 		}
 	});
+
+	loadFromUrl();
 });

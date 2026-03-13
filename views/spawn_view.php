@@ -4,16 +4,16 @@
     <meta charset="UTF-8">
     <title>Générateur de spawn ARK</title>
 
-    <link rel="stylesheet" href="<?= BASE_URL ?>public/vendor/bootstrap.min.css">
-	<link rel="stylesheet" href="<?= BASE_URL ?>public/vendor/jquery-ui.min.css">
-    <script src="<?= BASE_URL ?>public/vendor/jquery.min.js"></script>
-    <script src="<?= BASE_URL ?>public/vendor/jquery-ui.min.js"></script>
+    <link rel="stylesheet" href="<?= $baseUrl ?>public/vendor/bootstrap/css/bootstrap.min.css">
+	<link rel="stylesheet" href="<?= $baseUrl ?>public/vendor/jquery-ui.min.css">
+    <script src="<?= $baseUrl ?>public/vendor/jquery.min.js"></script>
+    <script src="<?= $baseUrl ?>public/vendor/jquery-ui.min.js"></script>
 
     <script>
         var CREATURES = <?php echo json_encode($creatures, JSON_UNESCAPED_SLASHES); ?>;
     </script>
 
-    <script src="<?= BASE_URL ?>public/js/spawn.js"></script>
+    <script src="<?= $baseUrl ?>public/js/spawn.js"></script>
 
     <style>
         body { padding: 20px; }
@@ -100,6 +100,10 @@
 	<h3>Version compacte</h3>
 	<p><button id="copyCompact" class="btn btn-primary btn-sm">Copier</button></p>
 	<pre id="outputCompact"></pre>
+
+	<h3>Lien de partage</h3>
+	<p><button id="copyShareUrl" class="btn btn-primary btn-sm">Copier le lien</button></p>
+	<input id="shareUrl" class="form-control" readonly>
 
 </div>
 </body>

@@ -1,8 +1,12 @@
 <?php
+namespace ArkTools\ArkGenerator\Models;
+
+use ArkTools\ArkGenerator\Config\Config;
+
 class CreaturesModel {
 
     public function loadCreatures() {
-        $file = DATA_PATH . 'Creatures.csv';
+        $file = Config::DATA_PATH . 'Creatures.csv';
         $creatures = array();
 
         if (!file_exists($file)) {

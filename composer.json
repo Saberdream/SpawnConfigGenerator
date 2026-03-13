@@ -1,0 +1,17 @@
+{
+    "name": "saberdream/ark-generator",
+    "type": "project",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "ArkTools\\ArkGenerator\\": "app/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Saberdream"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {}
+}
