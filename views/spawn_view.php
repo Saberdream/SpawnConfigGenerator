@@ -32,7 +32,7 @@
 		<h4>A lire pour utiliser le générateur de configuration de Spawn ASA :</h4>
 
 		<p>
-			Ce générateur de configuration INI crée une directive <strong>NPCSpawnEntriesContainerClassString</strong>
+			Ce générateur de configuration INI crée une directive <strong>ConfigAddNPCSpawnEntriesContainer</strong>
 			qui ajoute des entrées de spawn dans un conteneur donné de la map (par exemple le biome neigeux ou montagne).
 			Il ne remplace pas les dinos existants du conteneur, sauf si vous utilisez des poids très élevés (ex : 1).
 		</p>
@@ -43,7 +43,8 @@
 		<ul>
 			<li><strong>un poids</strong> : valeur relative aux autres dinos du conteneur</li>
 			<li><strong>un taux maximum</strong> (ex : 0.05 = 5%)</li>
-			<li><strong>une probabilité min/max</strong> (optionnelle, par défaut 100%)</li>
+			<li><strong>Un offset</strong> : coordonnées (x,y,z) par rapport au point de spawn</li>
+			<li><strong>une probabilité de spawn</strong> (optionnelle, par défaut 100%)</li>
 		</ul>
 
 		<p>
@@ -102,8 +103,8 @@
 	<pre id="outputCompact"></pre>
 
 	<h3>Lien de partage</h3>
-	<p><button id="copyShareUrl" class="btn btn-primary btn-sm">Copier le lien</button></p>
-	<input id="shareUrl" class="form-control" readonly>
+	<p><button id="copyConfigLink" class="btn btn-primary btn-sm">Copier le lien</button></p>
+	<input id="configLink" class="form-control" readonly>
 
 </div>
 </body>

@@ -10,8 +10,8 @@ function addDinoRow(data = null) {
 
 	var weight = data ? data.weight : 0.1;
 	var radius = data ? data.radius : 3000;
-	var chanceMin = data ? data.chanceMin : 1;
-	var chanceMax = data ? data.chanceMax : 1;
+	var chance = data ? data.chance : 1;
+	var offsets = data ? data.offsets : "";
 	var maxpct = data ? data.maxpct : 0.05;
 	var bp = data ? data.bp : "";
 
@@ -32,12 +32,12 @@ function addDinoRow(data = null) {
                 '<input type="number" class="form-control dino-radius" value="'+radius+'">' +
             '</div>' +
             '<div class="col-sm-2">' +
-                '<label>Chance min</label>' +
-                '<input type="number" class="form-control dino-chance-min" value="'+chanceMin+'" step="0.01">' +
+                '<label>Chance (%)</label>' +
+                '<input type="number" class="form-control dino-chance" value="'+chance+'" step="0.01">' +
             '</div>' +
             '<div class="col-sm-2">' +
-                '<label>Chance max</label>' +
-                '<input type="number" class="form-control dino-chance-max" value="'+chanceMax+'" step="0.01">' +
+                '<label>Offsets (x,y,z)</label>' +
+                '<input type="text" class="form-control dino-offsets" value="'+offsets+'" placeholder="ex: 500,200,0">' +
             '</div>' +
             '<div class="col-sm-1">' +
                 '<label>Max%</label>' +
@@ -87,8 +87,8 @@ function generateConfig() {
 		var name = $(this).find(".dino-select option:selected").data("name");
 		var weight = $(this).find(".dino-weight").val();
 		var radius = $(this).find(".dino-radius").val();
-		var chanceMin = $(this).find(".dino-chance-min").val();
-		var chanceMax = $(this).find(".dino-chance-max").val();
+		var chance = $(this).find(".dino-chance").val();
+		var offsets = $(this).find(".dino-offsets").val();
 		var maxpct = $(this).find(".dino-maxpct").val();
 
 		var entryName = name;
@@ -104,23 +104,33 @@ function generateConfig() {
 			limitsMap[bp] = maxpct;
 		}
 
-		if (!(chanceMin == 1 && chanceMax == 1)) {
-			entries.push(
-				'(AnEntryName="'+entryName+'",EntryWeight='+weight+
-				',NPCsToSpawn=("'+bp+'"),NPCsToSpawnPercentageChance=('+chanceMin+','+chanceMax+')'+
-				',ManualSpawnPointSpreadRadius='+radius+')'
-			);
+		let offsetBlock = "";
+		if (offsets && offsets.includes(",")) {
+			let parts = offsets.split(",").map(p => p.trim());
+			if (parts.length === 3) {
+				let x = parseFloat(parts[0]);
+				let y = parseFloat(parts[1]);
+				let z = parseFloat(parts[2]);
+				if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
+					offsetBlock = ',NPCsSpawnOffsets=((X=' + x + ',Y=' + y + ',Z=' + z + '))';
+				}
+			}
 		}
-		else {
-			entries.push(
-				'(AnEntryName="'+entryName+'",EntryWeight='+weight+
-				',NPCsToSpawn=("'+bp+'")'+
-				',ManualSpawnPointSpreadRadius='+radius+')'
-			);
+
+		let chanceBlock = "";
+		if (!(chance == 1)) {
+			chanceBlock = ',NPCsToSpawnPercentageChance=('+chance+')';
 		}
+
+		entries.push(
+			'(AnEntryName="'+entryName+'",EntryWeight='+weight+
+			',NPCsToSpawn=("'+bp+'")' +
+			offsetBlock +
+			chanceBlock +
+			',ManualSpawnPointSpreadRadius='+radius+')'
+		);
 	});
 
-	var limits = [];
 	for (var bp in limitsMap) {
 		limits.push('(NPCClass="' + bp + '",MaxPercentageOfDesiredNumToAllow=' + limitsMap[bp] + ')');
 	}
@@ -192,8 +202,8 @@ function updateShareUrl() {
             bp: bp,
             weight: parseFloat($(this).find(".dino-weight").val()),
             radius: parseFloat($(this).find(".dino-radius").val()),
-            chanceMin: parseFloat($(this).find(".dino-chance-min").val()),
-            chanceMax: parseFloat($(this).find(".dino-chance-max").val()),
+            chance: parseFloat($(this).find(".dino-chance").val()),
+            offsets: $(this).find(".dino-offsets").val(),
             maxpct: parseFloat($(this).find(".dino-maxpct").val())
         });
     });
@@ -205,7 +215,27 @@ function updateShareUrl() {
 
     var encoded = btoa(JSON.stringify(payload));
 
-    $("#shareUrl").val(window.location.origin + window.location.pathname + "?data=" + encoded);
+    $("#configLink").val(window.location.origin + window.location.pathname + "?data=" + encoded);
+}
+
+function isValidOffsets(str) {
+    if (typeof str !== "string") return false;
+    return /^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$/.test(str);
+}
+
+function isValidDinoData(d) {
+    if (!d || typeof d !== "object") return false;
+    if (typeof d.bp !== "string" || !d.bp.length) return false;
+    if (typeof d.weight !== "number" || !isFinite(d.weight) || d.weight <= 0) return false;
+    if (typeof d.radius !== "number" || !isFinite(d.radius) || d.radius <= 0) return false;
+    if (typeof d.maxpct !== "number" || !isFinite(d.maxpct) || d.maxpct < 0) return false;
+    if (d.chance !== undefined && d.chance !== null && d.chance !== "") {
+        if (typeof d.chance !== "number" || !isFinite(d.chance) || d.chance < 0) return false;
+    }
+    if (d.offsets !== undefined && d.offsets !== null && d.offsets !== "") {
+        if (!isValidOffsets(d.offsets)) return false;
+    }
+    return true;
 }
 
 function loadFromUrl() {
@@ -215,14 +245,22 @@ function loadFromUrl() {
 	try {
 		var decoded = JSON.parse(atob(params.get("data")));
 
-		$("#containerSelect").val(decoded.container);
+        if (typeof decoded.container === "string") {
+            $("#containerSelect").val(decoded.container);
+        }
 
 		$("#dinosContainer").empty();
 		dinoIndex = 0;
 
-		decoded.dinos.forEach(function(d) {
-			addDinoRow(d);
-		});
+        if (Array.isArray(decoded.dinos)) {
+            decoded.dinos.forEach(d => {
+                if (isValidDinoData(d)) {
+                    addDinoRow(d);
+                } else {
+                    console.warn("Données de dino invalides ignorées :", d);
+                }
+            });
+        }
 
 		updateEntryNames();
 		generateConfig();
@@ -250,8 +288,8 @@ $(function() {
 		"#containerSelect",
 		".dino-weight",
 		".dino-maxpct",
-		".dino-chance-min",
-		".dino-chance-max",
+		".dino-chance",
+		".dino-offsets",
 		".dino-radius"
 	];
 
@@ -280,8 +318,8 @@ $(function() {
 		flashCopied($(this));
 	});
 
-	$("#copyShareUrl").click(function() {
-		copyToClipboard($("#shareUrl").val());
+	$("#copyConfigLink").click(function() {
+		copyToClipboard($("#configLink").val());
 		flashCopied($(this));
 	});
 
