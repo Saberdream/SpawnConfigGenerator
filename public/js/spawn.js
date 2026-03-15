@@ -1,6 +1,6 @@
 var dinoIndex = 0;
 
-function addDinoRow(data = null) {
+function addClusterRow(data = null) {
     var id = "dino_" + dinoIndex++;
 
     var options = '<option value="">-- Choisir --</option>';
@@ -10,18 +10,21 @@ function addDinoRow(data = null) {
 
 	var weight = data ? data.weight : 0.1;
 	var radius = data ? data.radius : 3000;
-	var chance = data ? data.chance : 1;
-	var offsets = data ? data.offsets : "";
 	var maxpct = data ? data.maxpct : 0.05;
 	var bp = data ? data.bp : "";
+	let clusterName = data && data.name ? data.name : generateClusterName();
 
     var html =
         '<div class="row dino-row" id="'+id+'">' +
-            '<div class="col-sm-3">' +
+            '<div class="col-sm-2">' +
                 '<span class="drag-handle" style="cursor:move;">☰</span> ' +
-				'<label>Dino</label> <span class="entry-preview"></span>' +
-				' <img class="dino-icon" src="" style="display:none;">' +
-                '<select class="form-control dino-select">'+options+'</select>' +
+                '<label>Cluster</label>' +
+                '<input type="text" class="form-control cluster-name" value="'+clusterName+'">' +
+            '</div>' +
+            '<div class="col-sm-4">' +
+                '<label>Dinos</label>' +
+				' <span class="entry-preview"></span>' +
+                '<input class="dino-tags" id="cluster_dinos">' +
             '</div>' +
             '<div class="col-sm-2">' +
                 '<label>Poids</label>' +
@@ -32,17 +35,14 @@ function addDinoRow(data = null) {
                 '<input type="number" class="form-control dino-radius" value="'+radius+'">' +
             '</div>' +
             '<div class="col-sm-2">' +
-                '<label>Chance (%)</label>' +
-                '<input type="number" class="form-control dino-chance" value="'+chance+'" step="0.01">' +
-            '</div>' +
-            '<div class="col-sm-2">' +
-                '<label>Offsets (x,y,z)</label>' +
-                '<input type="text" class="form-control dino-offsets" value="'+offsets+'" placeholder="ex: 500,200,0">' +
-            '</div>' +
-            '<div class="col-sm-1">' +
                 '<label>Max%</label>' +
                 '<input type="number" class="form-control dino-maxpct" value="'+maxpct+'" step="0.01">' +
             '</div>' +
+			'<div class="dino-rows col-sm-12">' +
+				'<div class="dino-names col-sm-3"></div>' +
+				'<div class="cluster-chances col-sm-3"></div>' +
+				'<div class="cluster-offsets col-sm-3"></div>' +
+			'</div>' +
             '<div class="col-sm-12" style="margin-top:5px;">' +
                 '<button class="btn btn-danger btn-xs remove-dino">Supprimer</button>' +
             '</div>' +
@@ -50,26 +50,67 @@ function addDinoRow(data = null) {
 
     $("#dinosContainer").append(html);
 
-	if (bp) {
-		$("#"+id).find(".dino-select").val(bp).trigger("change");
-	}
+	$("#"+id+" .dino-tags").tagit({
+		allowSpaces: false,
+		autocomplete: { source: CREATURES.map(c => c.name) },
+		allowDuplicates: true,
+		afterTagAdded: function(event, ui) {
+			addDinoRow(id, ui.tagLabel);
+			updateEntryNames();
+			autoGenerate();
+		},
+		afterTagRemoved: function(event, ui) {
+			removeDinoRow(id, ui.tagLabel);
+			updateEntryNames();
+			autoGenerate();
+		}
+	});
 
 	updateEntryNames();
 	autoGenerate();
+	return id;
+}
+
+function addDinoRow(rowId, name) {
+	// name + dino icon
+	var spriteUrl = getDinoIconUrl(name);
+	$("#"+rowId+" .dino-names").append(
+		'<div class="name-item" data-name="'+name+'">'+
+			'<img class="dino-icon" src="'+spriteUrl+'" /> '+
+			'<label>'+name+'</label>'+
+		'</div>'
+	);
+	// chance field
+    $("#"+rowId+" .cluster-chances").append(
+        '<div class="chance-item" data-name="'+name+'">'+
+            '<input type="number" class="form-control cluster-chance" placeholder="'+name+' chance" step="0.01">'+
+        '</div>'
+    );
+	// offsets field
+    $("#"+rowId+" .cluster-offsets").append(
+        '<div class="offset-item" data-name="'+name+'">'+
+            '<input type="text" class="form-control cluster-offset" placeholder="'+name+' offsets: x,y,z">'+
+        '</div>'
+    );
+	$(document).on("input change", ".cluster-chance, .cluster-offset", autoGenerate);
+}
+
+function removeDinoRow(rowId, name) {
+	$("#"+rowId+" .name-item[data-name='"+name+"']").remove();
+	$("#"+rowId+" .chance-item[data-name='"+name+"']").remove();
+	$("#"+rowId+" .offset-item[data-name='"+name+"']").remove();
+}
+
+function generateClusterName() {
+    let base = "Spawn";
+    let count = $(".dino-row").length+1;
+    return count === 1 ? base : base + " " + count;
 }
 
 function updateEntryNames() {
-    var counts = {};
-
     $(".dino-row").each(function() {
-        var name = $(this).find(".dino-select option:selected").data("name");
-        if (!name) return;
-
-        if (!counts[name]) counts[name] = 1;
-        else counts[name]++;
-
-        var entryName = (counts[name] === 1) ? name : name + " " + counts[name];
-        $(this).find(".entry-preview").text(entryName);
+        let names = $(this).find(".dino-tags").tagit("assignedTags");
+        $(this).find(".entry-preview").text(names.join(", "));
     });
 }
 
@@ -81,50 +122,52 @@ function generateConfig() {
 	var nameCount = {};
 
 	$(".dino-row").each(function() {
-		var bp = $(this).find(".dino-select").val();
-		if (!bp) return;
+		let clusterName = $(this).find(".cluster-name").val();
+		let weight = $(this).find(".dino-weight").val();
+		let radius = $(this).find(".dino-radius").val();
+		let maxpct = $(this).find(".dino-maxpct").val();
+		let names = $(this).find(".dino-tags").tagit("assignedTags");
+        let dinos = names.map(name => {
+            let bp = CREATURES.find(c => c.name === name).bp;
+            let chance = $(this).find('.chance-item[data-name="'+name+'"] .cluster-chance').val();
+            let offsets = $(this).find('.offset-item[data-name="'+name+'"] .cluster-offset').val();
+            return { bp, chance, offsets };
+        });
 
-		var name = $(this).find(".dino-select option:selected").data("name");
-		var weight = $(this).find(".dino-weight").val();
-		var radius = $(this).find(".dino-radius").val();
-		var chance = $(this).find(".dino-chance").val();
-		var offsets = $(this).find(".dino-offsets").val();
-		var maxpct = $(this).find(".dino-maxpct").val();
+		let bps = dinos.map(d => `"${d.bp}"`).join(",");
+		
+        dinos.forEach(d => {
+            if (!(d.bp in limitsMap)) {
+                limitsMap[d.bp] = maxpct;
+            }
+        });
 
-		var entryName = name;
+        let chanceList = dinos.map(d => {
+            if (d.chance === "" || d.chance === undefined || d.chance === null)
+                return 1;
+            let c = parseFloat(d.chance);
+            return isNaN(c) ? 1 : c;
+        });
 
-		if (nameCount[name]) {
-			nameCount[name]++;
-			entryName = name + " " + nameCount[name];
-		} else {
-			nameCount[name] = 1;
-		}
+        let hasChanceBlock = chanceList.some(c => c !== 1);
+        let chanceBlock = hasChanceBlock ? ',NPCsToSpawnPercentageChance=(' + chanceList.join(",") + ')' : "";
 
-		if (!(bp in limitsMap)) {
-			limitsMap[bp] = maxpct;
-		}
+        let offsetList = dinos
+            .map(d => {
+                if (!d.offsets || !d.offsets.includes(",")) return null;
+                let parts = d.offsets.split(",").map(p => p.trim());
+                if (parts.length !== 3) return null;
+                let [x,y,z] = parts.map(parseFloat);
+                if ([x,y,z].some(v => isNaN(v))) return null;
+                return '(X='+x+',Y='+y+',Z='+z+')';
+            })
+            .filter(v => v !== null);
 
-		let offsetBlock = "";
-		if (offsets && offsets.includes(",")) {
-			let parts = offsets.split(",").map(p => p.trim());
-			if (parts.length === 3) {
-				let x = parseFloat(parts[0]);
-				let y = parseFloat(parts[1]);
-				let z = parseFloat(parts[2]);
-				if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
-					offsetBlock = ',NPCsSpawnOffsets=((X=' + x + ',Y=' + y + ',Z=' + z + '))';
-				}
-			}
-		}
-
-		let chanceBlock = "";
-		if (!(chance == 1)) {
-			chanceBlock = ',NPCsToSpawnPercentageChance=('+chance+')';
-		}
+        let offsetBlock = offsetList.length > 0 ? ',NPCsSpawnOffsets=(' + offsetList.join(",") + ')' : "";
 
 		entries.push(
-			'(AnEntryName="'+entryName+'",EntryWeight='+weight+
-			',NPCsToSpawn=("'+bp+'")' +
+			'(AnEntryName="'+clusterName+'",EntryWeight='+weight+
+			',NPCsToSpawn=('+bps+')' +
 			offsetBlock +
 			chanceBlock +
 			',ManualSpawnPointSpreadRadius='+radius+')'
@@ -191,59 +234,92 @@ function flashCopied(btn) {
 
 function updateShareUrl() {
     var container = $("#containerSelect").val();
-
-    var dinos = [];
+	var clusters = [];
 
     $(".dino-row").each(function() {
-        var bp = $(this).find(".dino-select").val();
-        if (!bp) return;
+		let names = $(this).find(".dino-tags").tagit("assignedTags");
 
-        dinos.push({
-            bp: bp,
+        let dinos = names.map(name => {
+            let bp = CREATURES.find(c => c.name === name)?.bp || "";
+            let chance = $(this).find('.chance-item[data-name="'+name+'"] .cluster-chance').val();
+            let offsets = $(this).find('.offset-item[data-name="'+name+'"] .cluster-offset').val();
+            return {
+                bp: bp,
+                chance: chance === "" ? "" : parseFloat(chance),
+                offsets: offsets
+            };
+		});
+
+        clusters.push({
+			name: $(this).find(".cluster-name").val(),
             weight: parseFloat($(this).find(".dino-weight").val()),
             radius: parseFloat($(this).find(".dino-radius").val()),
-            chance: parseFloat($(this).find(".dino-chance").val()),
-            offsets: $(this).find(".dino-offsets").val(),
-            maxpct: parseFloat($(this).find(".dino-maxpct").val())
+            maxpct: parseFloat($(this).find(".dino-maxpct").val()),
+			dinos
         });
     });
 
     var payload = {
         container: container,
-        dinos: dinos
+        clusters: clusters
     };
 
     var encoded = btoa(JSON.stringify(payload));
-
     $("#configLink").val(window.location.origin + window.location.pathname + "?data=" + encoded);
 }
 
 function isValidOffsets(str) {
     if (typeof str !== "string") return false;
-    return /^\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?\s*$/.test(str);
+	if (str.trim() === "") return false;
+    const float = "-?\\d+(?:\\.\\d+)?";
+    const regex = new RegExp("^\\s*" + float + "\\s*,\\s*" + float + "\\s*,\\s*" + float + "\\s*$");
+    return regex.test(str);
 }
 
-function isValidDinoData(d) {
+function isValidClusterDino(d) {
     if (!d || typeof d !== "object") return false;
     if (typeof d.bp !== "string" || !d.bp.length) return false;
-    if (typeof d.weight !== "number" || !isFinite(d.weight) || d.weight <= 0) return false;
-    if (typeof d.radius !== "number" || !isFinite(d.radius) || d.radius <= 0) return false;
-    if (typeof d.maxpct !== "number" || !isFinite(d.maxpct) || d.maxpct < 0) return false;
+
     if (d.chance !== undefined && d.chance !== null && d.chance !== "") {
-        if (typeof d.chance !== "number" || !isFinite(d.chance) || d.chance < 0) return false;
+        let c = parseFloat(d.chance);
+        if (!isFinite(c) || c < 0) return false;
     }
+
     if (d.offsets !== undefined && d.offsets !== null && d.offsets !== "") {
         if (!isValidOffsets(d.offsets)) return false;
     }
+
+    return true;
+}
+
+function isValidCluster(cluster) {
+    if (!cluster || typeof cluster !== "object") return false;
+
+    if (typeof cluster.weight !== "number" || !isFinite(cluster.weight) || cluster.weight <= 0)
+        return false;
+
+    if (typeof cluster.radius !== "number" || !isFinite(cluster.radius) || cluster.radius <= 0)
+        return false;
+
+    if (typeof cluster.maxpct !== "number" || !isFinite(cluster.maxpct) || cluster.maxpct < 0)
+        return false;
+
+    if (!Array.isArray(cluster.dinos) || cluster.dinos.length === 0)
+        return false;
+
+    for (let d of cluster.dinos) {
+        if (!isValidClusterDino(d)) return false;
+    }
+
     return true;
 }
 
 function loadFromUrl() {
-	var params = new URLSearchParams(window.location.search);
+	const params = new URLSearchParams(window.location.search);
 	if (!params.has("data")) return;
 
 	try {
-		var decoded = JSON.parse(atob(params.get("data")));
+		const decoded = JSON.parse(atob(params.get("data")));
 
         if (typeof decoded.container === "string") {
             $("#containerSelect").val(decoded.container);
@@ -252,14 +328,27 @@ function loadFromUrl() {
 		$("#dinosContainer").empty();
 		dinoIndex = 0;
 
-        if (Array.isArray(decoded.dinos)) {
-            decoded.dinos.forEach(d => {
-                if (isValidDinoData(d)) {
-                    addDinoRow(d);
-                } else {
-                    console.warn("Données de dino invalides ignorées :", d);
+        if (Array.isArray(decoded.clusters)) {
+			decoded.clusters.forEach(cluster => {
+				if (isValidCluster(cluster)) {
+					let rowId = addClusterRow(cluster);
+
+					$("#"+rowId+" .cluster-name").val(cluster.name);
+
+					cluster.dinos.forEach(d => {
+						$("#"+rowId+" .dino-tags").tagit("createTag", CREATURES.find(c => c.bp === d.bp).name);
+					});
+
+					cluster.dinos.forEach(d => {
+						let name = CREATURES.find(c => c.bp === d.bp).name;
+						$("#"+rowId+' .chance-item[data-name="'+name+'"] .cluster-chance').val(d.chance);
+						$("#"+rowId+' .offset-item[data-name="'+name+'"] .cluster-offset').val(d.offsets);
+					});
+				}
+				else {
+                    console.warn("Cluster invalide ignoré :", cluster);
                 }
-            });
+			});
         }
 
 		updateEntryNames();
@@ -273,9 +362,9 @@ function loadFromUrl() {
 
 $(function() {
     $("#addDino").click(function() {
-		addDinoRow();
+		addClusterRow();
 	});
-    addDinoRow();
+    addClusterRow();
 
     $("#dinosContainer").on("click", ".remove-dino", function() {
         $(this).closest(".dino-row").remove();
@@ -286,26 +375,14 @@ $(function() {
 
 	const autoFields = [
 		"#containerSelect",
+		'.cluster-name',
 		".dino-weight",
 		".dino-maxpct",
-		".dino-chance",
-		".dino-offsets",
 		".dino-radius"
 	];
 
 	autoFields.forEach(selector => {
 		$(document).on("input change", selector, autoGenerate);
-	});
-
-	$(document).on("change", ".dino-select", function () {
-		updateEntryNames();
-		autoGenerate();
-
-		let name = $(this).find("option:selected").data("name");
-		let url = getDinoIconUrl(name);
-
-		let img = $(this).closest(".dino-row").find(".dino-icon");
-		img.attr("src", url).show();
 	});
 
 	$("#copyReadable").click(function() {
