@@ -2,16 +2,9 @@ var dinoIndex = 0;
 
 function addClusterRow(data = null) {
     var id = "dino_" + dinoIndex++;
-
-    var options = '<option value="">-- Choisir --</option>';
-    CREATURES.forEach(function(c) {
-        options += '<option value="'+c.bp+'" data-name="'+c.name+'">'+c.name+'</option>';
-    });
-
 	var weight = data ? data.weight : 0.1;
 	var radius = data ? data.radius : 3000;
 	var maxpct = data ? data.maxpct : 0.05;
-	var bp = data ? data.bp : "";
 	let clusterName = data && data.name ? data.name : generateClusterName();
 
     var html =
@@ -72,23 +65,24 @@ function addClusterRow(data = null) {
 }
 
 function addDinoRow(rowId, name) {
+	    let uniqueId = name + "_" + Date.now() + "_" + Math.floor(Math.random()*10000);
 	// name + dino icon
 	var spriteUrl = getDinoIconUrl(name);
 	$("#"+rowId+" .dino-names").append(
-		'<div class="name-item" data-name="'+name+'">'+
+		'<div class="name-item" data-id="'+uniqueId+'" data-name="'+name+'">'+
 			'<img class="dino-icon" src="'+spriteUrl+'" /> '+
 			'<label>'+name+'</label>'+
 		'</div>'
 	);
 	// chance field
     $("#"+rowId+" .cluster-chances").append(
-        '<div class="chance-item" data-name="'+name+'">'+
+        '<div class="chance-item" data-id="'+uniqueId+'">'+
             '<input type="number" class="form-control cluster-chance" placeholder="'+name+' chance" step="0.01">'+
         '</div>'
     );
 	// offsets field
     $("#"+rowId+" .cluster-offsets").append(
-        '<div class="offset-item" data-name="'+name+'">'+
+        '<div class="offset-item" data-id="'+uniqueId+'">'+
             '<input type="text" class="form-control cluster-offset" placeholder="'+name+' offsets: x,y,z">'+
         '</div>'
     );
@@ -96,9 +90,12 @@ function addDinoRow(rowId, name) {
 }
 
 function removeDinoRow(rowId, name) {
-	$("#"+rowId+" .name-item[data-name='"+name+"']").remove();
-	$("#"+rowId+" .chance-item[data-name='"+name+"']").remove();
-	$("#"+rowId+" .offset-item[data-name='"+name+"']").remove();
+    let item = $("#"+rowId+" .name-item[data-name='"+name+"']").first();
+    let id = item.data("id");
+
+    item.remove();
+    $("#"+rowId+" .chance-item[data-id='"+id+"']").remove();
+    $("#"+rowId+" .offset-item[data-id='"+id+"']").remove();
 }
 
 function generateClusterName() {
@@ -119,36 +116,31 @@ function generateConfig() {
 	var entries = [];
 	var limits = [];
 	var limitsMap = {};
-	var nameCount = {};
 
 	$(".dino-row").each(function() {
 		let clusterName = $(this).find(".cluster-name").val();
 		let weight = $(this).find(".dino-weight").val();
 		let radius = $(this).find(".dino-radius").val();
 		let maxpct = $(this).find(".dino-maxpct").val();
-		let names = $(this).find(".dino-tags").tagit("assignedTags");
-        let dinos = names.map(name => {
+		
+		let dinos = [];
+        $(this).find(".name-item").each(function() {
+			let id = $(this).data("id");
+            let name = $(this).data("name");
             let bp = CREATURES.find(c => c.name === name).bp;
-            let chance = $(this).find('.chance-item[data-name="'+name+'"] .cluster-chance').val();
-            let offsets = $(this).find('.offset-item[data-name="'+name+'"] .cluster-offset').val();
-            return { bp, chance, offsets };
+            let chance = $(this).closest(".dino-row").find('.chance-item[data-id="'+id+'"] .cluster-chance').val();
+            let offsets = $(this).closest(".dino-row").find('.offset-item[data-id="'+id+'"] .cluster-offset').val();
+            dinos.push({bp, chance, offsets });
         });
 
-		let bps = dinos.map(d => `"${d.bp}"`).join(",");
-		
         dinos.forEach(d => {
             if (!(d.bp in limitsMap)) {
                 limitsMap[d.bp] = maxpct;
             }
         });
-
-        let chanceList = dinos.map(d => {
-            if (d.chance === "" || d.chance === undefined || d.chance === null)
-                return 1;
-            let c = parseFloat(d.chance);
-            return isNaN(c) ? 1 : c;
-        });
-
+		
+		let bps = dinos.map(d => `"${d.bp}"`).join(",");
+		let chanceList = dinos.map(d => d.chance ? parseFloat(d.chance) : 1);
         let hasChanceBlock = chanceList.some(c => c !== 1);
         let chanceBlock = hasChanceBlock ? ',NPCsToSpawnPercentageChance=(' + chanceList.join(",") + ')' : "";
 
@@ -160,8 +152,7 @@ function generateConfig() {
                 let [x,y,z] = parts.map(parseFloat);
                 if ([x,y,z].some(v => isNaN(v))) return null;
                 return '(X='+x+',Y='+y+',Z='+z+')';
-            })
-            .filter(v => v !== null);
+            }).filter(v => v !== null);
 
         let offsetBlock = offsetList.length > 0 ? ',NPCsSpawnOffsets=(' + offsetList.join(",") + ')' : "";
 
@@ -237,17 +228,15 @@ function updateShareUrl() {
 	var clusters = [];
 
     $(".dino-row").each(function() {
-		let names = $(this).find(".dino-tags").tagit("assignedTags");
+		let dinos = [];
 
-        let dinos = names.map(name => {
+        $(this).find(".name-item").each(function() {
+			let id = $(this).data("id");
+            let name = $(this).data("name");
             let bp = CREATURES.find(c => c.name === name)?.bp || "";
-            let chance = $(this).find('.chance-item[data-name="'+name+'"] .cluster-chance').val();
-            let offsets = $(this).find('.offset-item[data-name="'+name+'"] .cluster-offset').val();
-            return {
-                bp: bp,
-                chance: chance === "" ? "" : parseFloat(chance),
-                offsets: offsets
-            };
+            let chance = $(this).closest(".dino-row").find('.chance-item[data-id="'+id+'"] .cluster-chance').val();
+            let offsets = $(this).closest(".dino-row").find('.offset-item[data-id="'+id+'"] .cluster-offset').val();
+			dinos.push({ bp, chance, offsets });
 		});
 
         clusters.push({
@@ -259,11 +248,7 @@ function updateShareUrl() {
         });
     });
 
-    var payload = {
-        container: container,
-        clusters: clusters
-    };
-
+    var payload = { container: container, clusters: clusters };
     var encoded = btoa(JSON.stringify(payload));
     $("#configLink").val(window.location.origin + window.location.pathname + "?data=" + encoded);
 }
@@ -341,8 +326,9 @@ function loadFromUrl() {
 
 					cluster.dinos.forEach(d => {
 						let name = CREATURES.find(c => c.bp === d.bp).name;
-						$("#"+rowId+' .chance-item[data-name="'+name+'"] .cluster-chance').val(d.chance);
-						$("#"+rowId+' .offset-item[data-name="'+name+'"] .cluster-offset').val(d.offsets);
+						let id = $("#"+rowId+" .name-item[data-name='"+name+"']").last().data("id");
+						$("#"+rowId+' .chance-item[data-id="'+id+'"] .cluster-chance').val(d.chance);
+						$("#"+rowId+' .offset-item[data-id="'+id+'"] .cluster-offset').val(d.offsets);
 					});
 				}
 				else {
